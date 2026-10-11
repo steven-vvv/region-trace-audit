@@ -93,6 +93,11 @@ EOF
         done ;;
     esac
   fi
+  _self_port=$(printf '%s' "${SSH_CONNECTION:-}" | awk '{print $4}')
+  case "$_self_port" in ''|*[!0-9]*) ;; *) _ssh_ports="$_ssh_ports $_self_port" ;; esac
+  if [ "$PLATFORM" = macos ]; then
+    mac_check_ssh
+  else
   # 对端采集:tcp + tcp6(v4-mapped 归一为 IPv4;原生 v6 保留展示/GeoIP 由 HTTPS 源支持)
   _peers=""
   for _tf in /proc/net/tcp /proc/net/tcp6; do
@@ -159,6 +164,8 @@ EOF
     else
       report SKIP session/ssh-peers "(无可读 Linux socket 表;macOS 未实现 SSH socket 归属采集,不据此认定无连接)"
     fi
+  fi
+
   fi
 
   # ── 当前自身会话对端 GeoIP(外联最小集:即「操作者从哪连入」) ──

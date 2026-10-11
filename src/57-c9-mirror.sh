@@ -68,7 +68,7 @@ check_c9() {
 
   # ── docker/containerd 镜像源 ──
   _dk_any=0; _dk_hit=""
-  for _f in /etc/docker/daemon.json "$HOME/.docker/config.json" /etc/containerd/config.toml; do
+  for _f in /etc/docker/daemon.json "$HOME/.docker/daemon.json" /etc/containerd/config.toml; do
     [ -e "$_f" ] && _dk_any=1
     [ -r "$_f" ] && grep -qE "$CN_MIRROR_RE|registry\.cn-|ccr\.ccs\.tencentyun" "$_f" 2>/dev/null && _dk_hit="${_dk_hit:+$_dk_hit; }$_f"
   done
@@ -85,7 +85,9 @@ check_c9() {
   if have rpm; then _pkg_list=$(rpm -qa 2>/dev/null)
   elif have dpkg; then _pkg_list=$(dpkg -l 2>/dev/null | awk '/^ii/{print $2}')
   fi
-  if [ -n "$_pkg_list" ]; then
+  if [ "$PLATFORM" = macos ]; then
+    mac_check_apps
+  elif [ -n "$_pkg_list" ]; then
     _ime=$(printf '%s' "$_pkg_list" | grep -iE "$CN_SOFT_PKG_RE" | head -n 6 | tr '\n' ' ')
     if has_text "$_ime"; then
       report SUSPICIOUS mirror/cn-apps "已安装国内软件/输入法: $_ime"

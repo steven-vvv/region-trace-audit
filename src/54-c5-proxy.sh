@@ -54,7 +54,7 @@ check_c5() {
 
   # ── 透明代理/分流规则(需 root;无权限时跳过) ──
   if [ "$PLATFORM" = macos ]; then
-    report SKIP proxy/firewall "(macOS PF/Network Extension 规则未采集,不以缺少 iptables 推断无透明代理)"
+    mac_check_firewall
   elif have iptables && iptables -t nat -L -n >/dev/null 2>&1; then
     if iptables -t nat -L -n 2>/dev/null | grep -qE 'REDIRECT|TPROXY'; then
       report SUSPICIOUS proxy/transparent "iptables NAT 表含 REDIRECT/TPROXY(透明代理/分流)"

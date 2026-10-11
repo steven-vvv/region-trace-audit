@@ -96,9 +96,21 @@ check_c3() {
 
 deep_geo_scan() {
   _peers=""
-  [ -r /proc/net/tcp ] && _peers=$(awk '$4=="01"{split($3,r,":"); print r[1]}' /proc/net/tcp 2>/dev/null | tr '\n' ' ')
+  [ "$PLATFORM" != macos ] && [ -r /proc/net/tcp ] && _peers=$(awk '$4=="01"{split($3,r,":"); print r[1]}' /proc/net/tcp 2>/dev/null | tr '\n' ' ')
   # tcp6:仅纳入 v4-mapped 对端(ip-api 批量仅支持 IPv4;原生 v6 对端不外发,注记见输出)
-  [ -r /proc/net/tcp6 ] && _peers="$_peers $(awk 'function d(x){v=0;for(i=1;i<=length(x);i++){v=v*16+index("0123456789ABCDEF",substr(x,i,1))-1}return v} $4=="01"{split($3,r,":"); if (substr(r[1],1,16)=="0000000000000000" && substr(r[1],17,8)=="FFFF0000") print d(substr(r[1],31,2))"."d(substr(r[1],29,2))"."d(substr(r[1],27,2))"."d(substr(r[1],25,2))}' /proc/net/tcp6 2>/dev/null | tr '\n' ' ')"
+  [ "$PLATFORM" != macos ] && [ -r /proc/net/tcp6 ] && _peers="$_peers $(awk 'function d(x){v=0;for(i=1;i<=length(x);i++){v=v*16+index("0123456789ABCDEF",substr(x,i,1))-1}return v} $4=="01"{split($3,r,":"); if (substr(r[1],1,16)=="0000000000000000" && substr(r[1],17,8)=="FFFF0000") print d(substr(r[1],31,2))"."d(substr(r[1],29,2))"."d(substr(r[1],27,2))"."d(substr(r[1],25,2))}' /proc/net/tcp6 2>/dev/null | tr '\n' ' ')"
+  if [ "$PLATFORM" = macos ]; then
+    mac_socket_context
+    _mp=$(printf '%s\n' "$MAC_SOCKETS" | awk -F'|' '$3=="ESTABLISHED" {print $5}')
+    while IFS= read -r _ep; do
+      [ -n "$_ep" ] || continue
+      _mi=$(mac_endpoint_ip "$_ep")
+      # The existing batch provider accepts IPv4 only; do not send IPv6 as hex IPv4.
+      case "$_mi" in *:*) ;; *.*) _peers="$_peers $_mi" ;; esac
+    done <<EOF_MAC_PEERS
+$_mp
+EOF_MAC_PEERS
+  fi
   _kh="$HOME/.ssh/known_hosts"
   if [ -r "$_kh" ]; then
     _peers="$_peers $(awk '{print $1}' "$_kh" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | sort -u | head -n 30 | tr '\n' ' ')"

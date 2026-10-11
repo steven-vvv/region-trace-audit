@@ -20,9 +20,9 @@ check_c13() {
       report SKIP hw/wireless "(networksetup 无可见 Wi-Fi 硬件接口,不据此认定无无线硬件)"
     fi
     if [ "$RADIO" = 1 ]; then
-      report SKIP hw/radio "(macOS 暂无稳定的无提权监管域/蜂窝采集接口;不调用已弃用 airport 或申请定位权限)"
+      mac_check_radio
     else
-      report SKIP hw/radio "(默认关闭;macOS 监管域/蜂窝采集尚不支持)"
+      report SKIP hw/radio "(默认关闭;--radio 可读取 CoreWLAN/system_profiler 无线状态与监管域)"
     fi
     return
   fi

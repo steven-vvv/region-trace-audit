@@ -71,6 +71,23 @@ check_c14() {
     report SKIP services/systemd "(无 systemd/不可用 —— 容器常见)"
   fi
 
+  # macOS crontab distinguishes absent, readable/nonmatching, and access failures.
+  if [ "$PLATFORM" = macos ]; then
+    _cron=$(LC_ALL=C crontab -l 2>&1); _cron_rc=$?
+    if [ "$_cron_rc" = 0 ]; then
+      if printf '%s\n' "$_cron" | grep -qE "$CN_DOMAIN_RE"; then
+        report SUSPICIOUS services/cron "当前用户 cron 任务含国内域名引用(不输出任务内容)"
+      else
+        report CLEAN services/cron "当前用户可读 crontab 无国内域名引用"
+      fi
+    else
+      case "$_cron" in
+        *'no crontab for '*) report INFO services/cron "当前用户未配置 crontab(launchd 任务另查 macos 类)" ;;
+        *) report SKIP services/cron "(当前用户 crontab 不可读或命令不可用)" ;;
+      esac
+    fi
+    _cron=""
+  else
   # cron
   _cron_hit=0
   if have crontab; then
@@ -83,6 +100,8 @@ check_c14() {
     report SUSPICIOUS services/cron "cron 任务含国内域名引用"
   else
     report SKIP services/cron "(cron 不可读或无命中)"
+  fi
+
   fi
 
   # k8s pod 判定

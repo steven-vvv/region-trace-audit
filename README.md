@@ -97,14 +97,21 @@ POSIX sh + 常规 coreutils 即可运行;`curl` 或 `wget`、`awk`、`iproute2`�
 
 ```sh
 sh dist/region-trace-audit.sh --offline   # 纯本地
-sh dist/region-trace-audit.sh --json      # 本地 + 默认联网探测
+sh dist/region-trace-audit.sh --json --radio # 本地 + 默认联网探测 + 本地无线状态
 ```
 
 原生采集覆盖 `sw_vers`/`sysctl` 系统与硬件信息、启动时间、`route`/`ifconfig` 网络上下文、`netstat` TCP 监听端口、`scutil --dns` 动态解析器、`scutil --proxy` 的 HTTP/HTTPS/SOCKS/PAC/WPAD 开关、console 图形登录，以及现有的区域/输入源/launchd/用户字体/Homebrew 检查。仅报告代理开关，不读取 PAC 内容或输出 PAC URL。
 
 macOS 内置的中文 locale 和系统 CJK 字体不是用户选择，不据此判可疑；`com.todesktop` 等 bundle ID 不再误匹配 ToDesk。浏览器路径支持 `Application Support`、`Microsoft Edge`、带空格的 Firefox profile。历史检测仍是文件前 30MB 的域名近似匹配计数，不代表访问次数，不输出 URL 或查询词。
 
-采集失败和不支持的项目明确标为 SKIP：Linux `/proc`、systemd、LSM/cgroup 检查不适用于 macOS；SSH socket 对端归属、远控活动会话、PF/Network Extension 规则、无线监管域/蜂窝信息尚未实现。不因缺少 Linux 接口而宣称无桌面、无无线硬件、无 SSH 或无远控。`--radio` 在 macOS 明确跳过，不调用已弃用的 `airport`，不申请定位或完整磁盘访问权限。TCC/沙箱限制仍可能缩小可读范围。
+进一步的原生采集包括：
+
+- `lsof` 将 TCP socket 绑定到可见的 sshd/远控进程，支持 IPv4/IPv6；远控分别报告 installed、loaded、running、TCP-listening 和 TCP-established。覆盖 Apple Screen Sharing、RustDesk、AnyDesk、TeamViewer、ToDesk、Sunlogin、NoMachine、Chrome Remote Desktop、Parsec。活动 TCP 可能是心跳或中继，不直接认定有人正在远控；其他用户/root 进程可能不可见。
+- `arp` 网关 OUI、`ifconfig` MTU、标准 Applications 目录内 bundle ID、当前用户 crontab。`.AppleSetupDone` 只作为设置助手标记时间，不冒充初次安装日期；TCP sysctl 只报告配置。
+- 尝试读取 PF 根规则和 anchor，另查应用防火墙开关、Network Extension 系统扩展状态。PF 无权限时给出 `/dev/pf` 原因，不自动 sudo；Network Extension 清单不等于其内部规则，也不涵盖全部 app-extension VPN。
+- IOBluetooth 只获取配对/连接计数及名称是否含非 ASCII；CoreWLAN 只在本地比对当前 SSID。`--radio` 额外读取 CoreWLAN/system_profiler 无线状态与监管域，不扫描历史网络，不输出 SSID/BSSID、蓝牙地址或序列号，不调用已弃用的 `airport`。监管域仅为弱信号，不作为实际地理位置。
+
+Linux `/proc`、systemd、LSM/cgroup 等专属检查仍标为不适用；蜂窝基站信息未实现。macOS 定位隐私可能隐藏 SSID，即使 Wi-Fi 已连接；这时明确 SKIP，不解释为没有 Wi-Fi。脚本不主动申请定位或完整磁盘访问权限，TCC/沙箱限制仍可能缩小可读范围。`--deep-geo` 默认关闭；显式启用时可纳入 lsof 可见的 IPv4 对端，IPv6 不发送到现有 IPv4 批量查询接口。
 
 DNS 解析器来自动态配置，包含 scoped/supplemental 记录；默认 `dig`/`nslookup` 探测不覆盖所有按域名或接口选路的应用解析路径。系统代理配置也不保证命令行 `curl` 使用相同代理，出口结果仅代表探测进程。
 
@@ -120,7 +127,7 @@ sh tests/test-json-injection.sh
 sh tests/test-time-compound.sh
 ```
 
-macOS 回归使用临时目录和命令夹具，覆盖启用/关闭/无权限、路径含空格、日期边界等正负例；不访问真实用户记录或联网。CI 在 macOS 和 Ubuntu 的 sh/bash 下运行。原生 macOS 26.1 Apple Silicon 已完成离线全量实测，JSON 可解析且 stderr 为空。
+macOS 回归使用临时目录和命令夹具，覆盖启用/关闭/无权限、路径含空格、日期边界等正负例；不访问真实用户记录或联网。CI 在 macOS 和 Ubuntu 的 sh/bash 下运行。原生 macOS 26.1 Apple Silicon 已完成全量实测，JSON 可解析且 stderr 为空。
 
 ## 已知局限
 
@@ -128,7 +135,7 @@ macOS 回归使用临时目录和命令夹具，覆盖启用/关闭/无权限、
 - GeoIP 精度与中转:出口/控制端判定受数据库与链路影响;中继后不可观察,输出链断点声明
 - 作息推断:夜猫型作息会前移推断值;样本 <30 簇不判定;**东/东南亚 +7 时区(曼谷/雅加达/河内/珀斯)与 +8 在边界小时上原理性不可分** —— 单条作息仅可疑,升级需复合旁证
 - 内地假日/调休表覆盖 2024–2026(国办发明电官方通知;2027 待公布)
-- macOS 的 SSH socket/远控活动归属、PF/Network Extension 规则、无线监管域/蜂窝信息尚未实现;具体采集边界见上文。
+- macOS 的 socket 归属限于可见进程；TCP 活动不是交互远控证明，PF 可能需管理员权限，SSID 受定位隐私限制，蜂窝基站信息未实现；具体采集边界见上文。
 - 本工具检测「痕迹存在性」;痕迹缺失不等于无痕迹(见 C12 采集完整性旁证)
 
 ## 版本

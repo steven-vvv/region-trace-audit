@@ -40,7 +40,13 @@ check_c1() {
 
   # 系统安装时间(machine-id 时间估算,与 C12 新装判定共用)
   if [ "$PLATFORM" = macos ]; then
-    report SKIP sysinfo/install-age "(macOS 无可靠的只读安装时间依据,不以系统卷文件时间推断)"
+    _setup=$(fs_btime /var/db/.AppleSetupDone)
+    if [ -n "$_setup" ]; then
+      _setup_days=$((($(date +%s) - _setup) / 86400))
+      report INFO sysinfo/setup-age "设置助手完成标记约 $_setup_days 天前(.AppleSetupDone 创建/修改时间;迁移或重置会改变,不等于初次安装日期)"
+    else
+      report SKIP sysinfo/install-age "(.AppleSetupDone 元数据不可读;不猜测安装日期)"
+    fi
   else
     _it=$(fs_btime /etc/machine-id)
     [ -z "$_it" ] && _it=$(fs_btime /lost+found 2>/dev/null)
@@ -72,7 +78,13 @@ check_c1() {
   fi
 
   # TCP 拥塞控制
-  if [ -r /proc/sys/net/ipv4/tcp_congestion_control ]; then
+  if [ "$PLATFORM" = macos ]; then
+    _nr=$(sysctl -n net.inet.tcp.use_newreno 2>/dev/null)
+    case "$_nr" in
+      0|1) report INFO sysinfo/tcp-cc "Darwin TCP use_newreno=$_nr(内核配置;不等于逐连接实际算法)" ;;
+      *) report SKIP sysinfo/tcp-cc "(Darwin TCP 拥塞控制 sysctl 不可读/版本不支持)" ;;
+    esac
+  elif [ -r /proc/sys/net/ipv4/tcp_congestion_control ]; then
     _cc=$(cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null)
     case "$_cc" in
       bbr) report INFO sysinfo/tcp-cc "拥塞控制 bbr(国内用户常用配置,海外亦常见,仅作提示)" ;;

@@ -23,7 +23,7 @@ check_c17() {
       0|1) report INFO kernel/ip-forward "IPv4 转发=$_forward(仅拓扑角色)" ;;
       *) report SKIP kernel/ip-forward "(sysctl 不可读)" ;;
     esac
-    report SKIP kernel/firewall "(未读取需额外权限的 PF 规则;不声明无透明代理)"
+    report INFO kernel/firewall "PF 活动规则/应用防火墙/Network Extension 状态由 proxy 类采集(单项运行请用 --section proxy)"
     return
   fi
 

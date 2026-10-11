@@ -120,6 +120,9 @@ check_c10() {
   fi
 
   # 蓝牙配对缓存 / WiFi 配置(通常需权限)
+  if [ "$PLATFORM" = macos ]; then
+    mac_check_devices
+  else
   if [ -d /var/lib/bluetooth ] && [ -r /var/lib/bluetooth ]; then
     _bn=$(find /var/lib/bluetooth -mindepth 2 -maxdepth 2 -name info -exec grep -h '^Name=' {} \; 2>/dev/null | LC_ALL=C grep -c '[^ -~]' || true)
     if [ "${_bn:-0}" -gt 0 ]; then
@@ -139,6 +142,8 @@ check_c10() {
     fi
   else
     report SKIP fs/wifi-ssid "(无权限读 NM 配置)"
+  fi
+
   fi
 
   # 国内软件数据目录

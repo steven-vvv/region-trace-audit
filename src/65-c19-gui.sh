@@ -14,7 +14,7 @@ check_c19() {
     fi
     report INFO gui/ime "macOS 输入源由 macos 类读取 HIToolbox(单项 gui 请另运行 --section macos)"
     report INFO gui/fonts "macOS 内置 CJK 字体不作用户痕迹;用户字体由 macos 类检查"
-    report SKIP gui/rd "(macOS 远控产品/活动会话归属尚未实现;不能用 Linux 二进制/systemd 结果断言无远控)"
+    mac_check_remote_desktop
     return
   fi
 

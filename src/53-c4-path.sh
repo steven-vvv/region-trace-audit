@@ -5,8 +5,18 @@ check_c4() {
   hdr "C4 path · 链路、路由与本地网络"
 
   # ── 网关 MAC OUI(启发式,弱证据;VPS 虚拟网关自然不命中) ──
-  if [ -n "$ROUTE_GW" ] && [ -r /proc/net/arp ]; then
+  _mac=""; _arp_available=0
+  if [ "$PLATFORM" = macos ] && [ -n "$ROUTE_GW" ]; then
+    if _arp=$(arp -n "$ROUTE_GW" 2>/dev/null); then
+      _arp_available=1
+      _mac=$(printf '%s\n' "$_arp" | awk '{for(i=1;i<NF;i++) if($i=="at" && $(i+1) ~ /^[0-9a-fA-F:]+$/) print $(i+1)}' |
+        awk -F: 'NF==6 {for(i=1;i<=6;i++){if(length($i)==1)$i="0"$i}; print toupper($1":"$2":"$3":"$4":"$5":"$6)}')
+    fi
+  elif [ -n "$ROUTE_GW" ] && [ -r /proc/net/arp ]; then
+    _arp_available=1
     _mac=$(awk -v g="$ROUTE_GW" '$1==g{print toupper($4); exit}' /proc/net/arp 2>/dev/null)
+  fi
+  if [ "$_arp_available" = 1 ]; then
     if [ -n "$_mac" ]; then
       _oui=$(printf '%s' "$_mac" | cut -d: -f1-3)
       case " $GW_OUI_CN_LIST " in
@@ -19,12 +29,17 @@ check_c4() {
       report SKIP path/gw-oui "(ARP 表无网关条目)"
     fi
   else
-    report SKIP path/gw-oui "(缺 ip 工具或 /proc/net/arp 不可读)"
+    report SKIP path/gw-oui "(无默认网关/ARP 缓存不可读;macOS 使用 arp -n,隧道接口可能无 ARP)"
   fi
 
   # ── MTU ──
-  if [ -n "$ROUTE_IFACE" ] && [ -r "/sys/class/net/$ROUTE_IFACE/mtu" ]; then
+  _mtu=""
+  if [ "$PLATFORM" = macos ] && [ -n "$ROUTE_IFACE" ]; then
+    _mtu=$(ifconfig "$ROUTE_IFACE" 2>/dev/null | awk 'NR==1{for(i=1;i<NF;i++)if($i=="mtu")print $(i+1)}')
+  elif [ -n "$ROUTE_IFACE" ] && [ -r "/sys/class/net/$ROUTE_IFACE/mtu" ]; then
     _mtu=$(cat "/sys/class/net/$ROUTE_IFACE/mtu" 2>/dev/null)
+  fi
+  if [ -n "$_mtu" ]; then
     case "$_mtu" in
       1492|1488|1480) report SUSPICIOUS path/mtu "出口接口 $ROUTE_IFACE MTU=$_mtu(PPPoE 线路特征)" ;;
       *) report INFO path/mtu "出口接口 $ROUTE_IFACE MTU=$_mtu" ;;
