@@ -38,4 +38,4 @@
 #─────────────────────────────────────────────────────────────────────────────
 # shellcheck shell=sh   # 注:使用 local(dash/ash/bash/zsh 均支持,非严格 POSIX)
 
-VERSION="0.6"
+VERSION="0.7"
